@@ -1,3 +1,7 @@
+这个 fork 为受支持的 MHI2Q 车机新增了 CarPlay Route Guidance Interface 集成。
+具体更新内容请看CARPLAY_RGI_UPDATE.md文件
+
+
 # MIB2 High toolbox
 The ultimate MIB2-HIGH toolbox for all your MIB2 High customization needs.
 
