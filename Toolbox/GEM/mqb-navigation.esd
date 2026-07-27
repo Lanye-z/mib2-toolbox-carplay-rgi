@@ -68,6 +68,10 @@ script
    value   sys 1 0x0100 "/eso/hmi/engdefs/scripts/mqb/uninstall_carplay_rgi.sh"
    label   "Restore/Uninstall CarPlay Route Guidance Interface"
 
+script
+   value   sys 1 0x0100 "/eso/hmi/engdefs/scripts/mqb/collect_carplay_rgi_logs.sh"
+   label   "Collect CarPlay RGI diagnostic logs"
+
 
 keyValue
     value   String sys 0x00000000 0
