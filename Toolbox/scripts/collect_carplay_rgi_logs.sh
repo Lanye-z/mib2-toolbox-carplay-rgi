@@ -71,15 +71,10 @@ echo "===== dio_manager.json first 220 lines ====="
 sed -n '1,220p' "$DIO_JSON" 2>&1
 
 echo
-echo "===== Check possible navignore / dual navigation traces ====="
-grep -Rni "nav_active" /mnt/system/etc/eso /mnt/app/eso 2>/dev/null
-grep -Rni "navigation-active" /mnt/system/etc/eso /mnt/app/eso 2>/dev/null
-grep -Rni "navignore" /mnt/system/etc/eso /mnt/app/eso 2>/dev/null
-grep -Rni "dual" /mnt/system/etc/eso /mnt/app/eso 2>/dev/null
-
-echo
 echo "===== Check NavActiveIgnore jar and lsd.sh references ====="
 ls -l /mnt/app/eso/hmi/lsd/jars/NavActiveIgnore.jar 2>&1
+ls -l /mnt/app/eso/hmi/lsd/lsd.sh 2>&1
+ls -l /mnt/app/eso/hmi/lsd/lsd.sh.bu 2>&1
 grep -n "NavActiveIgnore" /mnt/app/eso/hmi/lsd/lsd.sh 2>&1
 
 echo
@@ -91,9 +86,11 @@ echo "===== maneuver_render.log ====="
 show_file /tmp/maneuver_render.log
 
 echo
-echo "===== Copy installed production JSON files ====="
+echo "===== Copy installed production JSON and LSD files ====="
 copy_file "$SMARTPHONE_JSON" "${OUTDIR}/smartphone_integrator_new.json"
 copy_file "$DIO_JSON" "${OUTDIR}/dio_manager_new.json"
+copy_file "/mnt/app/eso/hmi/lsd/lsd.sh" "${OUTDIR}/lsd.sh"
+copy_file "/mnt/app/eso/hmi/lsd/lsd.sh.bu" "${OUTDIR}/lsd.sh.bu"
 
 echo
 echo "===== Done ====="
