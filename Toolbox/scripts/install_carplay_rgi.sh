@@ -53,15 +53,17 @@ patch_smartphone_integrator() {
   fi
 
   echo "Patching smartphone_integrator.json"
+
   awk '
-    /IPL_CONFIG_DIR_DIO_MANAGER=\/etc\/eso\/production/ {
-      if ($0 !~ /,[[:space:]]*$/) sub(/"[[:space:]]*$/, "\",");
-      print;
-      print "        \"LD_PRELOAD=/mnt/app/root/hooks/libcarplay_hook.so\"";
-      next;
+    /"IPL_CONFIG_DIR_DIO_MANAGER=\/etc\/eso\/production"/ {
+      sub(/"[[:space:]]*$/, "\",")
+      print
+      print "        \"LD_PRELOAD=/mnt/app/root/hooks/libcarplay_hook.so\""
+      next
     }
     { print }
-  ' "${SMARTPHONE_JSON}" > "${SMARTPHONE_JSON}.carplay-rgi.tmp" && mv "${SMARTPHONE_JSON}.carplay-rgi.tmp" "${SMARTPHONE_JSON}"
+  ' "${SMARTPHONE_JSON}" > "${SMARTPHONE_JSON}.carplay-rgi.tmp" \
+  && mv "${SMARTPHONE_JSON}.carplay-rgi.tmp" "${SMARTPHONE_JSON}"
 }
 
 patch_dio_message() {
