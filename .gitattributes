@@ -8,3 +8,4 @@
 /Toolbox/apps/sshd/usr/sbin/start_sshd text eol=lf
 /Toolbox/apps/sshd/scp_wrapper text eol=lf
 /Toolbox/apps/sshd/etc/banner.txt text eol=lf
+/Toolbox/apps/carplay-rgi/carplay_hook.jar -filter -diff -merge -text
