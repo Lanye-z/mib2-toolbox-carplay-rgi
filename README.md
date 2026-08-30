@@ -12,9 +12,9 @@ CarPlay RGI 的核心目标是让 MHI2Q 主机能够接收 CarPlay 导航应用�
 
 本项目整合了以下两个开源项目：
 
-1. [Lanye-z/mib2q-carplay-rgi-cn](https://github.com/Lanye-z/mib2q-carplay-rgi-cn)
+1. [luka-dev/mib2q-carplay-rgi](https://github.com/luka-dev/mib2q-carplay-rgi)
 
-   该项目基于 [luka-dev/mib2q-carplay-rgi](https://github.com/luka-dev/mib2q-carplay-rgi)，提供本仓库当前采用的中国区 V38 融合实现和四个运行组件：
+   提供 CarPlay RGI 的核心实现和四个运行组件：
 
    - `libcarplay_hook.so`
    - `maneuver_render`
@@ -41,19 +41,6 @@ CarPlay RGI 的核心目标是让 MHI2Q 主机能够接收 CarPlay 导航应用�
 本项目**不会激活原本未开通的 CarPlay/App-Connect 功能**，也不会在仪表上实现完整的 CarPlay AltScreen 镜像。它是在已经能够正常使用 CarPlay 的兼容 MHI2Q 主机上增加路线引导及相关增强功能。
 
 ### 本项目所做的修改
-
-#### 当前集成版本
-
-`Toolbox/apps/carplay-rgi/` 当前包含已验证的 **iOS 27 / 高德地图 V38 融合版**，Java Build ID 为 `2026-08-30-3c1b5ab`。四个文件应作为同一套版本配套使用：
-
-| 文件 | SHA-256 |
-| --- | --- |
-| `carplay_hook.jar` | `94d0356d9a12730aca6dd430552c3aaf15ef9021ce3ddee87a760de966f5ad92` |
-| `libcarplay_hook.so` | `87d10f67fbb3dc142642d899977bab0a6eb4009f61d3bcd873d0cce9e01511f7` |
-| `maneuver_render` | `f86c7a44288d55c352837b3432874cf81836431929e625e7cded42d5664e993e` |
-| `flag_atlas.rgba` | `b1985705eabcb0379bed9a5c0055694a4b3db7ac28cef29c57a9d7f2e619dd11` |
-
-本版本针对 iOS 26.5.1 及以上版本中第三方导航数据格式和更新时序的变化，对高德地图增加 V38 兼容状态机及 native metadata 处理，优化路径代际、物理 maneuver head 对齐、距离新鲜度、短暂 inactive 状态和 maneuver rollover，减少箭头提前清除、错误跳转及距离冻结。同时保留零距离首帧启动、中国区显示距离、左右掉头判别、renderer 首帧预加载和原车导航接管等改进。
 
 #### 独立的 Green Engineering Menu 页面
 
@@ -152,16 +139,6 @@ CarPlay RGI 的核心目标是让 MHI2Q 主机能够接收 CarPlay 导航应用�
 
 ### 基本使用方法
 
-#### 替换或升级四个运行文件
-
-1. 下载或准备同一版本的 `carplay_hook.jar`、`libcarplay_hook.so`、`maneuver_render` 和 `flag_atlas.rgba`。
-2. 使用这四个文件完整替换 SD 卡中的 `Toolbox/apps/carplay-rgi/` 目录内容，保持文件名不变；不要混用不同版本的 JAR、hook 和 renderer。
-3. 将 Toolbox SD 卡插入车机，进入 `MQBCoding > Customization > CarPlay Route Guidance`。
-4. 选择 **Install/Update CarPlay Route Guidance Interface**。更新模式只替换四个运行文件，并保留首次安装时创建的原始 JSON 备份。
-5. 等待脚本明确提示成功；文件写入结束后至少等待 30 秒，再重启车机。
-
-本仓库已经包含上述最新四文件，直接使用当前 `master` 分支制作或刷新 Toolbox SD 卡即可。
-
 1. 将完整 Toolbox 文件放入 FAT32 格式的 SD 卡。
 2. 按照 MIB2 High Toolbox 的正常方式将 Toolbox 和新增 GEM 页面部署到车机。
 3. 保持 Toolbox SD 卡插入车机。
@@ -170,6 +147,8 @@ CarPlay RGI 的核心目标是让 MHI2Q 主机能够接收 CarPlay 导航应用�
 6. 文件写入结束后至少等待 30 秒，再重启车机。
 7. 需要排查问题时，先复现问题，再使用日志收集按钮将运行日志复制到 SD 卡。
 8. 需要重新开始记录时，使用日志清理按钮，然后再次复现问题。
+
+如需更新 CarPlay RGI，只需将新的四个组件放入 `Toolbox/apps/carplay-rgi/`，再次执行安装/更新按钮即可。
 
 ### 兼容性与风险提示
 
@@ -193,9 +172,9 @@ The core purpose of CarPlay RGI is to let an MHI2Q head unit receive route-guida
 
 This integration is based on two open-source projects:
 
-1. [Lanye-z/mib2q-carplay-rgi-cn](https://github.com/Lanye-z/mib2q-carplay-rgi-cn)
+1. [luka-dev/mib2q-carplay-rgi](https://github.com/luka-dev/mib2q-carplay-rgi)
 
-   Derived from [luka-dev/mib2q-carplay-rgi](https://github.com/luka-dev/mib2q-carplay-rgi), this project provides the China-focused V38 merged implementation and the four runtime components currently bundled here:
+   This project provides the CarPlay RGI implementation and its four runtime components:
 
    - `libcarplay_hook.so`
    - `maneuver_render`
@@ -222,19 +201,6 @@ Based on the current upstream CarPlay RGI implementation, the installed componen
 This project **does not activate CarPlay/App-Connect on a unit where it is not already enabled**, and it does not provide full CarPlay AltScreen mirroring on the cluster. It adds route guidance and related enhancements to a compatible MHI2Q unit with working CarPlay.
 
 ### Changes Included in This Integration
-
-#### Current Integrated Version
-
-`Toolbox/apps/carplay-rgi/` now contains the verified **iOS 27 / Amap V38 merged build**, with Java Build ID `2026-08-30-3c1b5ab`. Treat the four files as one matched release set:
-
-| File | SHA-256 |
-| --- | --- |
-| `carplay_hook.jar` | `94d0356d9a12730aca6dd430552c3aaf15ef9021ce3ddee87a760de966f5ad92` |
-| `libcarplay_hook.so` | `87d10f67fbb3dc142642d899977bab0a6eb4009f61d3bcd873d0cce9e01511f7` |
-| `maneuver_render` | `f86c7a44288d55c352837b3432874cf81836431929e625e7cded42d5664e993e` |
-| `flag_atlas.rgba` | `b1985705eabcb0379bed9a5c0055694a4b3db7ac28cef29c57a9d7f2e619dd11` |
-
-On iOS 26.5.1 and later, the third-party navigation data format and update timing changed. This build adds an Amap-specific V38 compatibility state machine and native metadata handling for route generations, physical maneuver-head alignment, distance freshness, transient inactive states, and maneuver rollover. It reduces premature arrow clearing, incorrect jumps, and frozen distances while retaining zero-distance first-frame startup, China-specific display thresholds, left/right U-turn detection, renderer first-frame preload, and stock-navigation handoff improvements.
 
 #### Dedicated Green Engineering Menu Page
 
@@ -333,16 +299,6 @@ Keep the original JSON backups safe. Do not manually edit or delete files in the
 
 ### Basic Usage
 
-#### Replacing or Upgrading the Four Runtime Files
-
-1. Obtain matching versions of `carplay_hook.jar`, `libcarplay_hook.so`, `maneuver_render`, and `flag_atlas.rgba`.
-2. Replace all four files in `Toolbox/apps/carplay-rgi/` on the SD card without changing their names. Do not mix a JAR, hook, or renderer from different releases.
-3. Insert the Toolbox SD card and open `MQBCoding > Customization > CarPlay Route Guidance`.
-4. Select **Install/Update CarPlay Route Guidance Interface**. Update mode replaces only the four runtime files and preserves the original JSON backups created during the first installation.
-5. Wait for an explicit success message. After file operations finish, wait at least 30 seconds before rebooting the head unit.
-
-This repository already contains the latest matched set described above, so the current `master` branch can be used directly to create or refresh the Toolbox SD card.
-
 1. Place the complete Toolbox structure on a FAT32-formatted SD card.
 2. Deploy the Toolbox and the new GEM page using the normal MIB2 High Toolbox procedure.
 3. Leave the Toolbox SD card inserted in the head unit.
@@ -351,6 +307,8 @@ This repository already contains the latest matched set described above, so the 
 6. After the file operations finish, wait at least 30 seconds before rebooting the head unit.
 7. To diagnose a problem, reproduce it first and then copy the runtime logs to the SD card.
 8. To begin a clean logging session, clear the runtime logs and reproduce the issue again.
+
+To update CarPlay RGI, replace the four files in `Toolbox/apps/carplay-rgi/` with the new versions and run the install/update action again.
 
 ### Compatibility and Risk Notice
 
