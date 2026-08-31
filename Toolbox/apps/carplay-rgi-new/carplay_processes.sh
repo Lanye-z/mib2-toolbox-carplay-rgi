@@ -143,7 +143,7 @@ cp_cap_log()
     [ -f "$CP_CAP_PATH" ] || return 0
     CP_CAP_SIZE=`cp_log_size "$CP_CAP_PATH"`
     case "$CP_CAP_SIZE" in
-        ''|*[!0-9]*) return 0 ;;
+        ''|*[!0-9]*) return 0 ;;                 # unreadable size: leave it alone
     esac
     [ "$CP_CAP_SIZE" -gt "$CP_LOG_MAX_BYTES" ] || return 0
     : > "$CP_CAP_PATH"
