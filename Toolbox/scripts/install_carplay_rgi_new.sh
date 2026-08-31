@@ -458,14 +458,20 @@ backup_stock_if_missing() {
       "${BACKUPFOLDER}/smartphone_integrator.json" \
       "${BACKUPFOLDER}/dio_manager.json" \
       "Existing CarPlayRGI-new stock backup"
+    log "[backup] REUSE: ${BACKUPFOLDER}/smartphone_integrator.json (no copy performed)"
+    log "[backup] REUSE: ${BACKUPFOLDER}/dio_manager.json (no copy performed)"
     return
   fi
 
   log "Creating CarPlayRGI-new stock configuration backup"
+  log "[backup] cp ${SMARTPHONE_JSON} -> ${BACKUPFOLDER}/smartphone_integrator.json"
   cp "${SMARTPHONE_JSON}" "${BACKUPFOLDER}/smartphone_integrator.json" || \
     fail "Could not back up ${SMARTPHONE_JSON}"
+  log "[backup] OK: ${SMARTPHONE_JSON} -> ${BACKUPFOLDER}/smartphone_integrator.json"
+  log "[backup] cp ${DIO_JSON} -> ${BACKUPFOLDER}/dio_manager.json"
   cp "${DIO_JSON}" "${BACKUPFOLDER}/dio_manager.json" || \
     fail "Could not back up ${DIO_JSON}"
+  log "[backup] OK: ${DIO_JSON} -> ${BACKUPFOLDER}/dio_manager.json"
 
   validate_stock_pair \
     "${BACKUPFOLDER}/smartphone_integrator.json" \
@@ -483,15 +489,19 @@ restore_old_to_stock() {
     "${OLD_BACKUPFOLDER}/dio_manager.json" \
     "Legacy CarPlayRGI stock backup"
 
+  log "[restore] cp ${OLD_BACKUPFOLDER}/smartphone_integrator.json -> ${SMARTPHONE_JSON}.carplay-rgi-new.tmp"
   cp "${OLD_BACKUPFOLDER}/smartphone_integrator.json" "${SMARTPHONE_JSON}.carplay-rgi-new.tmp" || \
     fail "Could not stage stock smartphone_integrator.json"
   chmod 644 "${SMARTPHONE_JSON}.carplay-rgi-new.tmp" || fail "Could not chmod stock smartphone_integrator.json"
   mv "${SMARTPHONE_JSON}.carplay-rgi-new.tmp" "${SMARTPHONE_JSON}" || fail "Could not restore stock smartphone_integrator.json"
+  log "[restore] OK: ${OLD_BACKUPFOLDER}/smartphone_integrator.json -> ${SMARTPHONE_JSON}"
 
+  log "[restore] cp ${OLD_BACKUPFOLDER}/dio_manager.json -> ${DIO_JSON}.carplay-rgi-new.tmp"
   cp "${OLD_BACKUPFOLDER}/dio_manager.json" "${DIO_JSON}.carplay-rgi-new.tmp" || \
     fail "Could not stage stock dio_manager.json"
   chmod 644 "${DIO_JSON}.carplay-rgi-new.tmp" || fail "Could not chmod stock dio_manager.json"
   mv "${DIO_JSON}.carplay-rgi-new.tmp" "${DIO_JSON}" || fail "Could not restore stock dio_manager.json"
+  log "[restore] OK: ${OLD_BACKUPFOLDER}/dio_manager.json -> ${DIO_JSON}"
 
   rm -f "${HOOK_TARGET}/libcarplay_hook.so" \
         "${HOOK_TARGET}/maneuver_render" \
@@ -765,6 +775,58 @@ append_json_array_value() {
   fi
 }
 
+ensure_dio_rgi_comments() {
+  FILE="$1"
+  TMP="${FILE}.carplay-rgi-new-comments.tmp"
+
+  # Documentation-only annotations: normalize them so updates remain idempotent.
+  awk '
+    function leading_ws(s) {
+      match(s,/^[ \t]*/)
+      return substr(s,1,RLENGTH)
+    }
+    function is_rgi_comment(s) {
+      return s ~ /^[ \t]*#[ \t]*,[ \t]*0x5200\/\* StartRouteGuidanceUpdates \*\/[ \t]*$/ ||
+             s ~ /^[ \t]*#[ \t]*,[ \t]*0x5203\/\* StopRouteGuidanceUpdates \*\/[ \t]*$/ ||
+             s ~ /^[ \t]*#[ \t]*0x5201\/\* RouteGuidanceUpdate \*\/[ \t]*$/ ||
+             s ~ /^[ \t]*#[ \t]*0x5202\/\* RouteGuidanceManeuverUpdate \*\/[ \t]*$/ ||
+             s ~ /^[ \t]*#[ \t]*0x5204\/\* RouteGuidanceLaneGuidanceInformation \*\/[ \t]*$/
+    }
+    {
+      line=$0
+      if (is_rgi_comment(line)) next
+      if (line ~ /^[ \t]*"MessagesSentByAccessory"[ \t]*:/) {
+        indent=leading_ws(line)
+        print indent "# , 0x5200/* StartRouteGuidanceUpdates */"
+        print indent "# , 0x5203/* StopRouteGuidanceUpdates */"
+      } else if (line ~ /^[ \t]*"MessagesReceivedFromDevice"[ \t]*:/) {
+        indent=leading_ws(line)
+        print indent "# 0x5201/* RouteGuidanceUpdate */"
+        print indent "# 0x5202/* RouteGuidanceManeuverUpdate */"
+        print indent "# 0x5204/* RouteGuidanceLaneGuidanceInformation */"
+      }
+      print line
+    }
+  ' "${FILE}" > "${TMP}" || fail "Could not add CarPlay RGI comments to $(basename "${FILE}")"
+
+  chmod 644 "${TMP}" || fail "Could not chmod commented $(basename "${FILE}")"
+  mv "${TMP}" "${FILE}" || fail "Could not install commented $(basename "${FILE}")"
+
+  set -- `awk '
+    /#[ \t]*,[ \t]*0x5200\/\* StartRouteGuidanceUpdates \*\// { a++ }
+    /#[ \t]*,[ \t]*0x5203\/\* StopRouteGuidanceUpdates \*\// { b++ }
+    /#[ \t]*0x5201\/\* RouteGuidanceUpdate \*\// { c++ }
+    /#[ \t]*0x5202\/\* RouteGuidanceManeuverUpdate \*\// { d++ }
+    /#[ \t]*0x5204\/\* RouteGuidanceLaneGuidanceInformation \*\// { e++ }
+    END { print a+0, b+0, c+0, d+0, e+0 }
+  ' "${FILE}"`
+  if [ "$1" -ne 1 ] || [ "$2" -ne 1 ] || [ "$3" -ne 1 ] || \
+     [ "$4" -ne 1 ] || [ "$5" -ne 1 ]; then
+    fail "CarPlay RGI comment verification failed"
+  fi
+  log "CarPlay RGI message ID comments verified"
+}
+
 patch_dio_manager() {
   log "Ensuring all five CarPlay RGI message IDs are registered"
 
@@ -773,6 +835,7 @@ patch_dio_manager() {
   append_json_array_value "${DIO_JSON}" "MessagesReceivedFromDevice" "0x5201"
   append_json_array_value "${DIO_JSON}" "MessagesReceivedFromDevice" "0x5202"
   append_json_array_value "${DIO_JSON}" "MessagesReceivedFromDevice" "0x5204"
+  ensure_dio_rgi_comments "${DIO_JSON}"
 }
 
 copy_component() {

@@ -144,9 +144,11 @@ restore_stock_file() {
   TARGET="$2"
   TMP="${TARGET}.carplay-rgi-new.uninstall.tmp"
 
+  log "[restore] cp ${SOURCE} -> ${TMP}"
   cp "${SOURCE}" "${TMP}" || fail "Could not stage stock $(basename "${TARGET}")"
   chmod 644 "${TMP}" || fail "Could not chmod stock $(basename "${TARGET}")"
   mv "${TMP}" "${TARGET}" || fail "Could not restore stock $(basename "${TARGET}")"
+  log "[restore] OK: ${SOURCE} -> ${TARGET}"
 }
 
 remove_component() {
