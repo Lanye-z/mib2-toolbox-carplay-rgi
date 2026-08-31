@@ -1,21 +1,22 @@
 # CarPlay RGI New payload
 
-This directory is for the supervisor-based deployment from `luka-dev/mib2q-carplay-rgi`.
+This directory contains the supervisor-based deployment payload for `luka-dev/mib2q-carplay-rgi`.
 
-Pinned upstream release for the initial integration:
+Pinned upstream release for this integration:
 
 - Release: `MHI2Q-2026-08-30`
 - Deployment layout: `deploy/smartphone_integrator/`
 
-The following text files are included from the upstream deployment layout:
+## Included deployment files
+
+The following upstream supervisor files are included:
 
 - `carplay_startup.sh`
 - `carplay_cleanup.sh`
 - `carplay_processes.sh`
 - `carplay_child.json`
 
-The GitHub connector used to prepare this integration cannot transfer binary GitHub Release assets.
-Before using the installer, place these four release binaries in this same directory:
+The following four binaries from upstream release `MHI2Q-2026-08-30` are also included in this directory and have been SHA-256 verified against the upstream GitHub Release digests:
 
 | File | Size | SHA-256 |
 | --- | ---: | --- |
@@ -25,6 +26,8 @@ Before using the installer, place these four release binaries in this same direc
 | `flag_atlas.rgba` | 917504 | `b1985705eabcb0379bed9a5c0055694a4b3db7ac28cef29c57a9d7f2e619dd11` |
 
 `install_carplay_rgi_new.sh` refuses to install if any required source file is missing or empty.
+
+## Backup and state handling
 
 Backup and logs are stored under:
 
