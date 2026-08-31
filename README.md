@@ -1,162 +1,229 @@
-# MHI2Q CarPlay Route Guidance Toolbox Integration
+# MHI2Q CarPlay Route Guidance Toolbox Integration - New
 
 ## 中文说明
 
 ### 项目简介
 
-本项目将 **MHI2Q CarPlay Route Guidance Interface（CarPlay RGI）** 集成到 **MIB2 High Toolbox** 中，为原本需要通过命令行手动部署和修改配置文件的 CarPlay RGI，提供可直接在车机 Green Engineering Menu 中操作的安装、更新、卸载、日志收集和日志清理功能。
+本分支用于将最新版 **MHI2Q CarPlay Route Guidance Interface（CarPlay RGI）** 集成到 **MIB2 High Toolbox** 中。
 
-CarPlay RGI 的核心目标是让 MHI2Q 主机能够接收 CarPlay 导航应用发送的路线引导数据，并将转向、车道、距离、预计到达时间等信息呈现在 Virtual Cockpit 和 HUD 上。
+与原有 `carplay-rgi` 安装方式相比，本分支按照新版 `luka-dev/mib2q-carplay-rgi` 的 **smartphone_integrator supervisor** 架构进行部署：不再把 `LD_PRELOAD` 直接写入 `children.carplay.envs`，而是由 `carplay_startup.sh` 启动 `dio_manager` 并仅对该进程加载 `libcarplay_hook.so`，同时由 supervisor 管理 `maneuver_render` 的生命周期。
+
+该分支与原来的 `carplay-rgi` 安装方式相互独立，相关文件、安装脚本、备份目录和 Green Engineering Menu 页面均使用 `carplay-rgi-new` / `CarPlayRGI-new` 命名。
 
 ### 基于的项目
 
-本项目整合了以下两个开源项目：
+本项目整合以下两个开源项目：
 
 1. [luka-dev/mib2q-carplay-rgi](https://github.com/luka-dev/mib2q-carplay-rgi)
-
-   提供 CarPlay RGI 的核心实现和四个运行组件：
-
-   - `libcarplay_hook.so`
-   - `maneuver_render`
-   - `flag_atlas.rgba`
-   - `carplay_hook.jar`
+   - 提供 CarPlay RGI 核心实现、运行组件以及新版 supervisor 部署脚本。
 
 2. [jilleb/mib2-toolbox](https://github.com/jilleb/mib2-toolbox)
+   - 提供 MIB2 High Toolbox、SD 卡部署结构、Green Engineering Menu 以及车机端脚本运行环境。
 
-   提供 MIB2 High Toolbox、SD 卡部署结构、Green Engineering Menu 框架以及车机端脚本运行环境。
+当前集成以 `MHI2Q-2026-08-30` Release 及对应的 `deploy/smartphone_integrator/` 部署方式为基础。
 
-本项目的工作重点是将两者连接起来，为 CarPlay RGI 增加完整、可重复执行且带有备份和日志记录的 Toolbox 管理流程。CarPlay RGI 的核心功能和运行组件版权归其原作者所有；MIB2 High Toolbox 的原有内容遵循其上游许可证。
+### 新版部署方式
 
-### CarPlay RGI 的主要作用
+新版不再在 `smartphone_integrator.json` 的 `children.carplay.envs` 中直接添加：
 
-根据上游 CarPlay RGI 项目的当前实现，安装后可以提供：
+```text
+LD_PRELOAD=/mnt/app/root/hooks/libcarplay_hook.so
+```
 
-- 将 Apple Maps、Google Maps、Waze 等 CarPlay 导航应用的路线引导信息发送至 Virtual Cockpit 和 HUD。
-- 显示转向图标、车道引导、路口信息、出口编号、下一步操作距离和距离进度条。
-- 显示当前道路、目的地、剩余距离、预计到达时间和剩余行程时间等文字信息。
-- 通过 MOST 视频通道在仪表地图区域渲染自定义 3D 转向画面。
-- 将 CarPlay 播放的专辑封面转发至仪表媒体界面。
-- 将 MMI 触摸板滑动操作桥接为 CarPlay 方向键输入。
+而是将 `children.carplay` 切换为：
 
-本项目**不会激活原本未开通的 CarPlay/App-Connect 功能**，也不会在仪表上实现完整的 CarPlay AltScreen 镜像。它是在已经能够正常使用 CarPlay 的兼容 MHI2Q 主机上增加路线引导及相关增强功能。
+```text
+carplay_startup.sh
+```
 
-### 本项目所做的修改
+由该启动脚本：
 
-#### 独立的 Green Engineering Menu 页面
+- 启动并维护 `maneuver_render`；
+- 处理 CarPlay supervisor 生命周期；
+- 在需要时执行受保护的 USB 恢复逻辑；
+- 仅在启动 `dio_manager` 前设置 `LD_PRELOAD`；
+- 将 supervisor 日志写入 `/tmp/carplay_wrapper.log`。
 
-新增菜单页面：
+这种方式可以避免 `libcarplay_hook.so` 被继承到 `/bin/sh`、`maneuver_render` 等不需要加载 hook 的进程。
 
-`Main > MQBCoding > Customization > CarPlay Route Guidance`
+### Green Engineering Menu 页面
 
-该页面包含四个操作按钮：
+新增独立菜单页面：
 
-1. **Install/Update CarPlay Route Guidance Interface**
-2. **Restore/Uninstall CarPlay Route Guidance Interface**
-3. **Copy CarPlay RGI runtime logs to SD-card**
-4. **Clear CarPlay RGI runtime logs**
+`Main > MQBCoding > Customization > CarPlay Route Guidance - New`
 
-菜单定义文件为：
+包含三个操作：
 
-`Toolbox/GEM/mqb-carplayRouteGuidance.esd`
+1. **Install/Update CarPlay Route Guidance - New**
+2. **Restore/Uninstall CarPlay Route Guidance - New**
+3. **Copy CarPlay RGI New runtime logs to SD-card**
 
-#### 四个管理脚本
+菜单定义文件：
 
-##### `install_carplay_rgi.sh`
+`Toolbox/GEM/mqb-carplayRouteGuidance-new.esd`
 
-负责首次安装和后续更新：
+旧版 `CarPlay Route Guidance` 页面及其脚本保持不变。
 
-- 检查 SD 卡、四个源组件以及两个车机配置文件是否存在。
-- 检查 `smartphone_integrator.json` 和 `dio_manager.json` 当前是否处于未安装或完整安装状态。
-- 拒绝处理只有部分 RGI 标记、重复标记或注入位置不正确的异常配置，避免继续叠加修改。
-- 首次安装时备份原始 `smartphone_integrator.json` 和 `dio_manager.json`，已有原始备份不会被后续安装覆盖。
-- 将 `LD_PRELOAD` 准确加入 `carplay.envs`，并注入 `0x5200` 至 `0x5204` 路线引导消息定义。
-- 将四个 RGI 组件复制到车机，并设置正确权限。
-- 重复执行时进入更新模式，用 SD 卡中的四个新组件替换车机内的旧版本，同时保留最初的原车 JSON 备份。
-- 安装过程中创建临时事务快照；发生脚本错误或捕获到中断信号时，尝试恢复到本次安装开始前的状态。
-- 安装结束前检查四个组件及所有配置标记，并保存修改后的 JSON 副本。
+### 安装状态识别
 
-##### `uninstall_carplay_rgi.sh`
+`install_carplay_rgi_new.sh` 在修改车机前会识别当前状态：
 
-负责恢复和卸载：
+| 状态 | 含义 | 处理方式 |
+| --- | --- | --- |
+| `CLEAN` | 原车状态，旧版和新版均未安装 | 备份原车配置后直接安装 `carplay-rgi-new` |
+| `OLD` | 已安装原来的 `carplay-rgi` | 使用旧版原始备份恢复原车，确认恢复成功后再安装新版 |
+| `NEW` | 已安装 `carplay-rgi-new` | 保留第一次保存的原车备份，直接覆盖更新新版文件和配置 |
+| `INVALID` | 部分安装、OLD/NEW 混合、重复或异常配置 | 拒绝继续修改车机 |
 
-- 在修改车机之前确认两个原始 JSON 备份都存在。
-- 使用最初备份恢复 `smartphone_integrator.json` 和 `dio_manager.json`。
-- 删除车机中的四个 CarPlay RGI 组件。
-- 检查两个配置文件已经恢复且四个组件已经移除。
-- 脚本可以重复执行；如果一次卸载未完成，可以在条件恢复后再次执行。
-
-##### `collect_carplay_rgi_logs.sh`
-
-负责收集运行日志：
-
-- 将 `/tmp/carplay_hook.log` 复制到 SD 卡。
-- 将 `/tmp/maneuver_render.log` 复制到 SD 卡。
-- 使用临时文件完成复制后再替换目标文件，降低产生不完整日志副本的概率。
-- 如果当前运行日志不存在，则保留 SD 卡上已有的上一次收集副本。
-
-##### `clear_carplay_rgi_logs.sh`
-
-负责清空车机运行日志：
-
-- 清空 `/tmp/carplay_hook.log`。
-- 清空 `/tmp/maneuver_render.log`。
-- 采用截断为 0 字节的方式，而不是删除文件，因此已经打开日志文件的进程仍可继续向同一文件写入新记录。
+OLD → NEW 的迁移过程也包含在安装事务中。如果新版安装过程中发生错误，脚本会尝试恢复到本次安装开始前的状态。
 
 ### 安装位置
 
-四个 CarPlay RGI 组件会被部署到：
+新版 CarPlay RGI 会部署以下 7 个文件：
 
 | 组件 | 车机目标位置 |
 | --- | --- |
 | `libcarplay_hook.so` | `/mnt/app/root/hooks/libcarplay_hook.so` |
 | `maneuver_render` | `/mnt/app/root/hooks/maneuver_render` |
 | `flag_atlas.rgba` | `/mnt/app/root/hooks/flag_atlas.rgba` |
+| `carplay_startup.sh` | `/mnt/app/root/hooks/carplay_startup.sh` |
+| `carplay_cleanup.sh` | `/mnt/app/root/hooks/carplay_cleanup.sh` |
+| `carplay_processes.sh` | `/mnt/app/root/hooks/carplay_processes.sh` |
 | `carplay_hook.jar` | `/mnt/app/eso/hmi/lsd/jars/carplay_hook.jar` |
+
+其中 `carplay_child.json` 仅作为安装模板保存在 SD 卡：
+
+`Toolbox/apps/carplay-rgi-new/carplay_child.json`
+
+安装程序会使用该模板替换 `smartphone_integrator.json` 中的 `children.carplay` 对象，不会把 `carplay_child.json` 单独复制到车机文件系统。
 
 安装程序还会修改：
 
 - `/mnt/system/etc/eso/production/smartphone_integrator.json`
 - `/mnt/system/etc/eso/production/dio_manager.json`
 
+`dio_manager.json` 中仍需要注册以下五个 CarPlay RGI 消息 ID：
+
+| 方向 | Message ID |
+| --- | --- |
+| Accessory → Device | `0x5200` StartRouteGuidanceUpdates |
+| Accessory → Device | `0x5203` StopRouteGuidanceUpdates |
+| Device → Accessory | `0x5201` RouteGuidanceUpdate |
+| Device → Accessory | `0x5202` RouteGuidanceManeuverUpdate |
+| Device → Accessory | `0x5204` RouteGuidanceLaneGuidanceInformation |
+
 ### 备份与日志
 
-所有备份及管理日志按车机固件版本存放在 SD 卡的以下目录：
+新版安装产生的备份和管理日志统一存放在：
+
+`Backup/<VERSION>/CarPlayRGI-new/`
+
+| 文件 | 用途 |
+| --- | --- |
+| `smartphone_integrator.json` | 第一次安装 NEW 前保存的原车配置 |
+| `dio_manager.json` | 第一次安装 NEW 前保存的原车配置 |
+| `smartphone_integrator_new.json` | 最近一次成功安装后的配置副本 |
+| `dio_manager_new.json` | 最近一次成功安装后的配置副本 |
+| `install_carplay_rgi_new.log` | 安装 / 更新 / OLD → NEW 迁移日志 |
+| `uninstall_carplay_rgi_new.log` | 卸载及恢复日志 |
+| `carplay_hook.log` | CarPlay hook 运行日志 |
+| `maneuver_render.log` | maneuver renderer 运行日志 |
+| `carplay_wrapper.log` | 新版 supervisor / wrapper 运行日志 |
+
+旧版备份仍保存在：
 
 `Backup/<VERSION>/CarPlayRGI/`
 
-其中包括：
+当安装器检测到 `OLD` 状态时，会先校验这里保存的旧版原车备份，再使用它恢复真正的原车配置。旧版备份不会被 `carplay-rgi-new` 覆盖。
 
-- `smartphone_integrator.json`：首次安装前的原始文件。
-- `dio_manager.json`：首次安装前的原始文件。
-- `smartphone_integrator_new.json`：最近一次成功安装后的文件副本。
-- `dio_manager_new.json`：最近一次成功安装后的文件副本。
-- `install_carplay_rgi.log`：安装和更新过程记录。
-- `uninstall_carplay_rgi.log`：恢复和卸载过程记录。
-- `carplay_hook.log`：收集到的 CarPlay hook 运行日志。
-- `maneuver_render.log`：收集到的 3D 渲染器运行日志。
+### 卸载方式
 
-请妥善保管原始 JSON 备份，不要手动修改或删除备份目录中的文件。
+`uninstall_carplay_rgi_new.sh` 只使用：
+
+`Backup/<VERSION>/CarPlayRGI-new/`
+
+中第一次保存的原车 `smartphone_integrator.json` 和 `dio_manager.json` 进行恢复。
+
+随后删除新版安装的 7 个文件，并验证配置及文件恢复状态。
+
+安装和卸载脚本均不会覆盖或删除原车：
+
+`/etc/scripts/carplay_cleanup.sh`
+
+新版 `carplay_cleanup.sh` 只会在需要时调用这个原车脚本完成 stock mdnsd / PPS cleanup。
+
+### 日志收集
+
+`collect_carplay_rgi_new_logs.sh` 会收集：
+
+| 车机运行日志 | SD 卡保存位置 |
+| --- | --- |
+| `/tmp/carplay_hook.log` | `Backup/<VERSION>/CarPlayRGI-new/carplay_hook.log` |
+| `/tmp/maneuver_render.log` | `Backup/<VERSION>/CarPlayRGI-new/maneuver_render.log` |
+| `/tmp/carplay_wrapper.log` | `Backup/<VERSION>/CarPlayRGI-new/carplay_wrapper.log` |
+
+复制时先写入临时文件，再替换已有日志副本。如果本次运行日志不存在，则保留 SD 卡上已有的上一份日志。
+
+### SD 卡目录结构
+
+```text
+Toolbox/
+├── apps/
+│   ├── carplay-rgi/
+│   └── carplay-rgi-new/
+│       ├── carplay_hook.jar
+│       ├── libcarplay_hook.so
+│       ├── maneuver_render
+│       ├── flag_atlas.rgba
+│       ├── carplay_startup.sh
+│       ├── carplay_cleanup.sh
+│       ├── carplay_processes.sh
+│       └── carplay_child.json
+├── GEM/
+│   ├── mqb-carplayRouteGuidance.esd
+│   └── mqb-carplayRouteGuidance-new.esd
+└── scripts/
+    ├── install_carplay_rgi.sh
+    ├── uninstall_carplay_rgi.sh
+    ├── collect_carplay_rgi_logs.sh
+    ├── clear_carplay_rgi_logs.sh
+    ├── install_carplay_rgi_new.sh
+    ├── uninstall_carplay_rgi_new.sh
+    └── collect_carplay_rgi_new_logs.sh
+```
 
 ### 基本使用方法
 
-1. 将完整 Toolbox 文件放入 FAT32 格式的 SD 卡。
-2. 按照 MIB2 High Toolbox 的正常方式将 Toolbox 和新增 GEM 页面部署到车机。
+1. 将完整 Toolbox 文件放入 FAT32 格式 SD 卡。
+2. 按 MIB2 High Toolbox 的正常方式安装 / 更新 Toolbox。
 3. 保持 Toolbox SD 卡插入车机。
-4. 进入 `MQBCoding > Customization > CarPlay Route Guidance`。
-5. 选择安装/更新按钮，等待脚本明确提示安装成功。
-6. 文件写入结束后至少等待 30 秒，再重启车机。
-7. 需要排查问题时，先复现问题，再使用日志收集按钮将运行日志复制到 SD 卡。
-8. 需要重新开始记录时，使用日志清理按钮，然后再次复现问题。
+4. 进入 `MQBCoding > Customization > CarPlay Route Guidance - New`。
+5. 执行 **Install/Update CarPlay Route Guidance - New**。
+6. 等待脚本明确显示安装成功。
+7. 文件同步完成后至少等待 30 秒，再重启车机。
+8. 如需排查问题，在复现问题后执行日志收集，将三个运行日志复制到 SD 卡。
 
-如需更新 CarPlay RGI，只需将新的四个组件放入 `Toolbox/apps/carplay-rgi/`，再次执行安装/更新按钮即可。
+### 当前 payload 状态
+
+当前分支已经包含 `MHI2Q-2026-08-30` Release 的四个二进制文件，并已对**仓库中实际提交的文件**执行 SHA-256 校验；结果与 upstream GitHub Release 提供的 digest 完全一致：
+
+| 文件 | 大小 | SHA-256 |
+| --- | ---: | --- |
+| `carplay_hook.jar` | 178976 | `8031eb73009a8b09fb9c8663b6b08c64ed51cb966ee374cb74845c8090ab8d37` |
+| `libcarplay_hook.so` | 300211 | `34dabdcfda933be6bbc8085414f31fe052dded4c0c4a1075e2ac1793dd0f162a` |
+| `maneuver_render` | 121738 | `1004dc594a9f408793b91f69f75200ea71088e408caa3a9ed43bde4f6b517b30` |
+| `flag_atlas.rgba` | 917504 | `b1985705eabcb0379bed9a5c0055694a4b3db7ac28cef29c57a9d7f2e619dd11` |
+
+如果任一必须文件不存在或为空，安装脚本会直接中止，不修改 production 配置。车机端安装脚本本身不会重新计算 SHA-256；上表用于确认当前仓库 payload 与固定 upstream Release 一致。
 
 ### 兼容性与风险提示
 
-- 本功能面向 **Audi MHI2Q** 平台，不应直接用于 MIB1、MIB2 Standard、MHI2 或其他未经确认的平台。
-- 上游 RGI 组件可能与具体固件版本有关；用于其他版本前应确认二进制兼容性。
-- 安装前应确认 CarPlay 本身已经正常工作，并完整保存 SD 卡中的备份。
-- 本项目会修改车机系统配置和持久化文件，操作可能导致功能异常、系统无法启动或保修失效。
-- 所有操作均由使用者自行承担风险。作者及上游项目维护者不对设备损坏、数据丢失或其他后果负责。
+- 本功能面向 **Audi MHI2Q** 平台。
+- 不建议直接用于 MIB1、MIB2 Standard、MHI2 或其他未经确认的平台。
+- 安装前应确认 CarPlay 本身已经可以正常工作。
+- OLD → NEW 迁移依赖旧版 `Backup/<VERSION>/CarPlayRGI/` 中保存的原始配置；缺少可靠备份时安装器会拒绝自动迁移。
+- 本项目会修改车机持久化系统配置，错误固件、异常断电或不兼容二进制均可能导致功能异常。
+- 所有操作均由使用者自行承担风险。
 
 ---
 
@@ -164,156 +231,95 @@ CarPlay RGI 的核心目标是让 MHI2Q 主机能够接收 CarPlay 导航应用�
 
 ### Overview
 
-This project integrates the **MHI2Q CarPlay Route Guidance Interface (CarPlay RGI)** into the **MIB2 High Toolbox**. It replaces the original command-line deployment procedure with a dedicated Green Engineering Menu page for installing, updating, restoring, uninstalling, collecting logs, and clearing logs directly on the head unit.
+This branch integrates the supervisor-based version of **MHI2Q CarPlay Route Guidance Interface (CarPlay RGI)** into **MIB2 High Toolbox**.
 
-The core purpose of CarPlay RGI is to let an MHI2Q head unit receive route-guidance data from CarPlay navigation apps and present maneuvers, lanes, distances, ETA, and related information on the Virtual Cockpit and HUD.
+Unlike the legacy `carplay-rgi` deployment, the new architecture does not place `LD_PRELOAD` directly in `children.carplay.envs`. `smartphone_integrator` launches `carplay_startup.sh`, which supervises the renderer and applies `LD_PRELOAD` only to the direct `dio_manager` process.
 
-### Upstream Projects
+The legacy and NEW integrations remain separate. NEW files, scripts, backups, and the Green Engineering Menu page use the `carplay-rgi-new` / `CarPlayRGI-new` naming scheme.
 
-This integration is based on two open-source projects:
+### Green Engineering Menu
 
-1. [luka-dev/mib2q-carplay-rgi](https://github.com/luka-dev/mib2q-carplay-rgi)
+The NEW page is available at:
 
-   This project provides the CarPlay RGI implementation and its four runtime components:
+`Main > MQBCoding > Customization > CarPlay Route Guidance - New`
 
-   - `libcarplay_hook.so`
-   - `maneuver_render`
-   - `flag_atlas.rgba`
-   - `carplay_hook.jar`
+It provides three actions:
 
-2. [jilleb/mib2-toolbox](https://github.com/jilleb/mib2-toolbox)
+1. **Install/Update CarPlay Route Guidance - New**
+2. **Restore/Uninstall CarPlay Route Guidance - New**
+3. **Copy CarPlay RGI New runtime logs to SD-card**
 
-   This project provides the MIB2 High Toolbox, its SD-card deployment structure, the Green Engineering Menu framework, and the on-device script environment.
+### Installer states
 
-The main contribution of this project is the integration layer between them: a repeatable Toolbox workflow with automatic configuration changes, persistent original backups, validation, recovery, and diagnostic logging. The CarPlay RGI implementation and binaries remain the work of their original authors, and the original MIB2 High Toolbox content remains subject to its upstream license.
+| State | Meaning | Action |
+| --- | --- | --- |
+| `CLEAN` | Stock configuration | Save original backups and install NEW |
+| `OLD` | Legacy `carplay-rgi` installed | Restore the legacy installation to stock, verify it, then install NEW |
+| `NEW` | Supervisor-based version already installed | Preserve the original NEW stock backup and overwrite/update NEW |
+| `INVALID` | Partial, mixed, duplicated, or malformed state | Abort without intentionally modifying production configuration |
 
-### CarPlay RGI Features
+### Installed files
 
-Based on the current upstream CarPlay RGI implementation, the installed components can provide:
-
-- Route-guidance data from CarPlay navigation apps such as Apple Maps, Google Maps, and Waze on the Virtual Cockpit and HUD.
-- Maneuver icons, lane guidance, junction details, exit numbers, distance to the next action, and a distance bargraph.
-- Current-road, destination, remaining-distance, ETA, and remaining-time text information.
-- Custom 3D maneuver rendering in the cluster map area through the MOST video path.
-- CarPlay album-art forwarding to the cluster media display.
-- MMI touchpad swipe-to-DPAD bridging for CarPlay input.
-
-This project **does not activate CarPlay/App-Connect on a unit where it is not already enabled**, and it does not provide full CarPlay AltScreen mirroring on the cluster. It adds route guidance and related enhancements to a compatible MHI2Q unit with working CarPlay.
-
-### Changes Included in This Integration
-
-#### Dedicated Green Engineering Menu Page
-
-A new page is added at:
-
-`Main > MQBCoding > Customization > CarPlay Route Guidance`
-
-It contains four actions:
-
-1. **Install/Update CarPlay Route Guidance Interface**
-2. **Restore/Uninstall CarPlay Route Guidance Interface**
-3. **Copy CarPlay RGI runtime logs to SD-card**
-4. **Clear CarPlay RGI runtime logs**
-
-The menu definition is stored in:
-
-`Toolbox/GEM/mqb-carplayRouteGuidance.esd`
-
-#### Four Management Scripts
-
-##### `install_carplay_rgi.sh`
-
-Handles both first-time installation and later updates:
-
-- Checks the SD card, all four source components, and both production configuration files.
-- Detects whether the configuration is unmodified or already contains a complete RGI installation.
-- Rejects partial, duplicated, malformed, or incorrectly placed RGI markers instead of applying further changes to an uncertain configuration.
-- Saves the original `smartphone_integrator.json` and `dio_manager.json` during the first installation. Later runs never overwrite these original backups.
-- Adds the `LD_PRELOAD` entry specifically to `carplay.envs` and registers route-guidance message IDs `0x5200` through `0x5204`.
-- Copies all four RGI components to the head unit with the required permissions.
-- In update mode, replaces the installed components with the four versions currently stored on the SD card while preserving the original JSON backups.
-- Creates a temporary pre-install transaction snapshot and attempts to restore it if the script fails or receives a handled interruption signal.
-- Verifies every component and configuration marker before completing, then stores copies of the resulting modified JSON files.
-
-##### `uninstall_carplay_rgi.sh`
-
-Restores the original configuration and removes RGI:
-
-- Confirms that both original JSON backups exist before changing production files.
-- Restores `smartphone_integrator.json` and `dio_manager.json` from the first-install backups.
-- Removes all four CarPlay RGI components from the head unit.
-- Verifies that both configuration files exist and that all four RGI components have been removed.
-- Can be run again if a previous uninstall did not complete and the required conditions have been restored.
-
-##### `collect_carplay_rgi_logs.sh`
-
-Collects the two runtime logs:
-
-- Copies `/tmp/carplay_hook.log` to the SD card.
-- Copies `/tmp/maneuver_render.log` to the SD card.
-- Stages each copy in a temporary file before replacing the destination, reducing the chance of leaving an incomplete collected copy.
-- Retains an older collected copy on the SD card if the current runtime source log is missing.
-
-##### `clear_carplay_rgi_logs.sh`
-
-Clears the two runtime logs on the head unit:
-
-- Clears `/tmp/carplay_hook.log`.
-- Clears `/tmp/maneuver_render.log`.
-- Truncates the files to zero bytes instead of unlinking them, allowing processes with existing open file handles to continue writing new messages to the same files.
-
-### Installed Files
-
-The four CarPlay RGI components are deployed to:
+The NEW deployment installs these seven files:
 
 | Component | Destination on the head unit |
 | --- | --- |
 | `libcarplay_hook.so` | `/mnt/app/root/hooks/libcarplay_hook.so` |
 | `maneuver_render` | `/mnt/app/root/hooks/maneuver_render` |
 | `flag_atlas.rgba` | `/mnt/app/root/hooks/flag_atlas.rgba` |
+| `carplay_startup.sh` | `/mnt/app/root/hooks/carplay_startup.sh` |
+| `carplay_cleanup.sh` | `/mnt/app/root/hooks/carplay_cleanup.sh` |
+| `carplay_processes.sh` | `/mnt/app/root/hooks/carplay_processes.sh` |
 | `carplay_hook.jar` | `/mnt/app/eso/hmi/lsd/jars/carplay_hook.jar` |
+
+`carplay_child.json` remains on the SD card as the template used to replace the `children.carplay` object. It is not installed as a standalone production file.
 
 The installer also modifies:
 
 - `/mnt/system/etc/eso/production/smartphone_integrator.json`
 - `/mnt/system/etc/eso/production/dio_manager.json`
 
-### Backups and Logs
+### Backup and logs
 
-All backups and management logs are grouped by the detected firmware version under:
+NEW backups and management logs are stored under:
 
-`Backup/<VERSION>/CarPlayRGI/`
+`Backup/<VERSION>/CarPlayRGI-new/`
 
-The directory can contain:
+| File | Purpose |
+| --- | --- |
+| `smartphone_integrator.json` | Original stock configuration captured before the first NEW install |
+| `dio_manager.json` | Original stock configuration captured before the first NEW install |
+| `smartphone_integrator_new.json` | Latest successfully installed configuration copy |
+| `dio_manager_new.json` | Latest successfully installed configuration copy |
+| `install_carplay_rgi_new.log` | Install/update/migration log |
+| `uninstall_carplay_rgi_new.log` | Uninstall/restore log |
+| `carplay_hook.log` | Collected hook runtime log |
+| `maneuver_render.log` | Collected renderer runtime log |
+| `carplay_wrapper.log` | Collected supervisor/wrapper runtime log |
 
-- `smartphone_integrator.json`: original file saved before the first installation.
-- `dio_manager.json`: original file saved before the first installation.
-- `smartphone_integrator_new.json`: copy of the file produced by the latest successful installation.
-- `dio_manager_new.json`: copy of the file produced by the latest successful installation.
-- `install_carplay_rgi.log`: installation and update history.
-- `uninstall_carplay_rgi.log`: restore and uninstall history.
-- `carplay_hook.log`: collected CarPlay hook runtime log.
-- `maneuver_render.log`: collected 3D renderer runtime log.
+Legacy backups under `Backup/<VERSION>/CarPlayRGI/` are kept untouched and are used only when a verified OLD → NEW migration is required.
 
-Keep the original JSON backups safe. Do not manually edit or delete files in the backup directory.
+### Runtime log collection
 
-### Basic Usage
+| Runtime source | SD-card destination |
+| --- | --- |
+| `/tmp/carplay_hook.log` | `Backup/<VERSION>/CarPlayRGI-new/carplay_hook.log` |
+| `/tmp/maneuver_render.log` | `Backup/<VERSION>/CarPlayRGI-new/maneuver_render.log` |
+| `/tmp/carplay_wrapper.log` | `Backup/<VERSION>/CarPlayRGI-new/carplay_wrapper.log` |
 
-1. Place the complete Toolbox structure on a FAT32-formatted SD card.
-2. Deploy the Toolbox and the new GEM page using the normal MIB2 High Toolbox procedure.
-3. Leave the Toolbox SD card inserted in the head unit.
-4. Open `MQBCoding > Customization > CarPlay Route Guidance`.
-5. Select the install/update action and wait for an explicit success message.
-6. After the file operations finish, wait at least 30 seconds before rebooting the head unit.
-7. To diagnose a problem, reproduce it first and then copy the runtime logs to the SD card.
-8. To begin a clean logging session, clear the runtime logs and reproduce the issue again.
+### Payload status
 
-To update CarPlay RGI, replace the four files in `Toolbox/apps/carplay-rgi/` with the new versions and run the install/update action again.
+This branch already contains the four binaries from upstream release `MHI2Q-2026-08-30`. SHA-256 was computed from the files actually checked out from this branch, and all four values exactly match the digests published by the upstream GitHub Release:
 
-### Compatibility and Risk Notice
+| File | Size | SHA-256 |
+| --- | ---: | --- |
+| `carplay_hook.jar` | 178976 | `8031eb73009a8b09fb9c8663b6b08c64ed51cb966ee374cb74845c8090ab8d37` |
+| `libcarplay_hook.so` | 300211 | `34dabdcfda933be6bbc8085414f31fe052dded4c0c4a1075e2ac1793dd0f162a` |
+| `maneuver_render` | 121738 | `1004dc594a9f408793b91f69f75200ea71088e408caa3a9ed43bde4f6b517b30` |
+| `flag_atlas.rgba` | 917504 | `b1985705eabcb0379bed9a5c0055694a4b3db7ac28cef29c57a9d7f2e619dd11` |
 
-- This integration targets the **Audi MHI2Q** platform. It should not be used directly on MIB1, MIB2 Standard, MHI2, or any other unverified platform.
-- Upstream RGI binaries may be firmware-specific. Confirm binary compatibility before using them on a different firmware release.
-- CarPlay should already be enabled and working before installation, and the SD-card backups should be preserved in a safe location.
-- This project modifies system configuration and persistent files on the infotainment unit. Incorrect or incompatible use may cause malfunction, an unbootable unit, or loss of warranty.
-- Use entirely at your own risk. Neither this project's author nor the upstream maintainers are responsible for device damage, data loss, or any other consequences.
+The installer aborts before modifying production configuration if any required payload file is missing or empty. It does not recompute SHA-256 on the head unit; the table above records the verified payload currently committed to this branch.
+
+### Warning
+
+This project modifies persistent MHI2Q system configuration. Verify platform and binary compatibility, preserve the generated backups, allow filesystem writes to finish before rebooting, and use it at your own risk.
