@@ -4,12 +4,9 @@ on:
   push:
     branches:
       - feature/carplay-rgi-new
-    paths:
-      - '.github/workflows/verify-carplay-rgi-new-payload.yml'
-      - 'Toolbox/apps/carplay-rgi-new/carplay_hook.jar'
-      - 'Toolbox/apps/carplay-rgi-new/libcarplay_hook.so'
-      - 'Toolbox/apps/carplay-rgi-new/maneuver_render'
-      - 'Toolbox/apps/carplay-rgi-new/flag_atlas.rgba'
+  pull_request:
+    branches:
+      - master
 
 jobs:
   verify:
