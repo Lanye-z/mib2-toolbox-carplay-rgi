@@ -205,7 +205,7 @@ Toolbox/
 
 ### 当前 payload 状态
 
-当前分支已包含新版 supervisor 文本文件，但在真正上车安装前，`Toolbox/apps/carplay-rgi-new/` 中还必须存在 `MHI2Q-2026-08-30` Release 的以下四个二进制文件：
+当前分支已经包含 `MHI2Q-2026-08-30` Release 的四个二进制文件，并已对**仓库中实际提交的文件**执行 SHA-256 校验；结果与 upstream GitHub Release 提供的 digest 完全一致：
 
 | 文件 | 大小 | SHA-256 |
 | --- | ---: | --- |
@@ -214,7 +214,7 @@ Toolbox/
 | `maneuver_render` | 121738 | `1004dc594a9f408793b91f69f75200ea71088e408caa3a9ed43bde4f6b517b30` |
 | `flag_atlas.rgba` | 917504 | `b1985705eabcb0379bed9a5c0055694a4b3db7ac28cef29c57a9d7f2e619dd11` |
 
-如果任一必须文件不存在或为空，安装脚本会直接中止，不修改 production 配置。
+如果任一必须文件不存在或为空，安装脚本会直接中止，不修改 production 配置。车机端安装脚本本身不会重新计算 SHA-256；上表用于确认当前仓库 payload 与固定 upstream Release 一致。
 
 ### 兼容性与风险提示
 
@@ -307,16 +307,18 @@ Legacy backups under `Backup/<VERSION>/CarPlayRGI/` are kept untouched and are u
 | `/tmp/maneuver_render.log` | `Backup/<VERSION>/CarPlayRGI-new/maneuver_render.log` |
 | `/tmp/carplay_wrapper.log` | `Backup/<VERSION>/CarPlayRGI-new/carplay_wrapper.log` |
 
-### Payload requirement
+### Payload status
 
-Before using this branch on a head unit, the four binaries from upstream release `MHI2Q-2026-08-30` must exist in `Toolbox/apps/carplay-rgi-new/`:
+This branch already contains the four binaries from upstream release `MHI2Q-2026-08-30`. SHA-256 was computed from the files actually checked out from this branch, and all four values exactly match the digests published by the upstream GitHub Release:
 
-- `carplay_hook.jar`
-- `libcarplay_hook.so`
-- `maneuver_render`
-- `flag_atlas.rgba`
+| File | Size | SHA-256 |
+| --- | ---: | --- |
+| `carplay_hook.jar` | 178976 | `8031eb73009a8b09fb9c8663b6b08c64ed51cb966ee374cb74845c8090ab8d37` |
+| `libcarplay_hook.so` | 300211 | `34dabdcfda933be6bbc8085414f31fe052dded4c0c4a1075e2ac1793dd0f162a` |
+| `maneuver_render` | 121738 | `1004dc594a9f408793b91f69f75200ea71088e408caa3a9ed43bde4f6b517b30` |
+| `flag_atlas.rgba` | 917504 | `b1985705eabcb0379bed9a5c0055694a4b3db7ac28cef29c57a9d7f2e619dd11` |
 
-The installer aborts before modifying production configuration if any required payload file is missing or empty.
+The installer aborts before modifying production configuration if any required payload file is missing or empty. It does not recompute SHA-256 on the head unit; the table above records the verified payload currently committed to this branch.
 
 ### Warning
 
